@@ -17,10 +17,10 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item">
-                        <a class="nav-link" href="/">Home</a>
+                        <a class="nav-link" href="/addProduct">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="/login">Login</a>
+                        <a class="nav-link" href="/">Login</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/register">Register</a>
@@ -29,10 +29,9 @@
             </div>
         </div>
     </nav>
-
     <div class="container mt-5">
         <h1 class="text-center mb-4">Thêm sản phẩm</h1>
-        <form action="/add-product" method="POST">
+        <form action="/addProduct" method="POST">
             <div class="mb-3">
                 <label for="productName" class="form-label">Tên sản phẩm</label>
                 <input type="text" class="form-control" id="productName" name="productName" required>
@@ -45,34 +44,41 @@
                 <label for="price" class="form-label">Giá cả</label>
                 <input type="number" class="form-control" id="price" name="price" required>
             </div>
+            <div class="form-group">
+                <label for="image">Ảnh sản phẩm:</label>
+                <input type="file" class="form-control-file" id="image" name="image" accept="image/*" required/>
+            </div>
             <div class="d-grid">
                 <button type="submit" class="btn btn-primary">Thêm sản phẩm</button>
             </div>
         </form>
     </div>
-
     <div class="container mt-5">
-        <h1 class="text-center mb-4">Danh sách dữ liệu</h1>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Tên sản phẩm</th>
-                    <th>Số lượng</th>
-                    <th>Giá </th>
-                </tr>
-            </thead>
-            <tbody>
-                {{#each data}}
-                <tr>
-                    <td>{{name}}</td>
-                    <td>{{quantity}}</td>
-                    <td>{{price}}</td>
-                </tr>
-                {{/each}}
-            </tbody>
-        </table>
+        <h1 class="text-center mb-4">Danh sách sản phẩm</h1>
+        <div class="row">
+            {{#each products}}
+            <div class="col-md-4 mb-4">
+                <div class="card">
+                    
+                    <img src="/{{image}}" class="card-img-top" alt="{{productName}}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{productName}}</h5>
+                        <p class="card-text">Giá: {{price}}</p>
+                        <p class="card-text">Số lượng: {{quantity}}</p>
+                        <form method="post" action="/deleteProduct" class="d-inline">
+                            <input type="hidden" name="productName" value="{{productName}}" />
+                            <button type="submit" class="btn btn-danger">Xóa</button>
+                        </form>
+                        <form method="get" action="/editProduct" class="d-inline">
+                            <input type="hidden" name="productName" value="{{productName}}" />
+                            <button type="submit" class="btn btn-primary">Cập nhật</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {{/each}}
+        </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 
