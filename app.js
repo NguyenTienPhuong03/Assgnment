@@ -23,14 +23,35 @@ db.once('open', () => {
 });
 
 const app = express();
-const storage = multer.diskStorage({
+var storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'public/images');
+
+      var dir = './uploads';
+
+      if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+      }
+
+      cb(null, 'uploads')
   },
   filename: function (req, file, cb) {
-    cb(null, Date.now() + path.extname(file.originalname));
-  },
-});
+
+      let fileName = file.originalname;
+      arr = fileName.split('.');
+
+      let newFileName = '';
+
+      for (let i =0; i< arr.length; i++) {
+          if (i != arr.length - 1) {
+              newFileName += arr[i];
+          } else {
+              newFileName += ('-' + Date.now() + '.' + arr[i]);
+          }
+      }
+
+      cb(null, newFileName)
+  }
+})
 const upload = multer({ storage });
 
 // Cấu hình Handlebars
@@ -83,12 +104,17 @@ app.post('/addProduct', upload.single('image'), (req, res) => {
   let productName = req.body.productName;
   let price = req.body.price;
   let quantity = req.body.quantity;
-
+  let file = req.body.image;
+    if (!file) {
+      const error = new Error('Please upload a photo');
+      error.httpStatusCode = 400;
+      return next(error);
+    }
   
   let addProduct = new Product({
       productName: productName,
       price: price,
-      image: "",
+      image: file,
       quantity: quantity
   })
 
