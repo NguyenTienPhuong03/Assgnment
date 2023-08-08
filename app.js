@@ -1,9 +1,26 @@
 const express = require('express');
 const exphbs = require('express-handlebars');
 const bodyParser = require('body-parser');
+const Product = require("./models/modelProduct");
 const fs = require('fs');
 const multer = require('multer');
 const path = require('path');
+
+const mongoose = require('mongoose');
+
+const uri = 'mongodb+srv://tienphuongnguyen7:Phuong2k3@baitap.pk7r33h.mongodb.net/dbProduct?retryWrites=true&w=majority';
+
+mongoose.connect(uri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
+
+const db = mongoose.connection;
+
+db.on('error', console.error.bind(console, 'Connection error:'));
+db.once('open', () => {
+  console.log('Connected to MongoDB');
+});
 
 const app = express();
 const storage = multer.diskStorage({
@@ -31,54 +48,21 @@ app.get('/', (req, res) => {
   res.render('login');
 });
 
-app.get('/addProduct', (req, res) => {
+app.get('/addProduct',async (req, res) => {
   // Đọc dữ liệu từ tập tin products.json
-  fs.readFile(productsFilePath, 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading file:', err);
-      return res.sendStatus(500);
-    }
-
-    // Chuyển dữ liệu thành mảng JSON
-    const products = JSON.parse(data);
-
-    // Trả về trang thêm sản phẩm và truyền dữ liệu vào template
+  try {
+    const products = await Product.find({}).lean();
+    
     res.render('addProduct', { products });
-  });
+  } catch (error) {
+    console.error('Lỗi lấy dữ liệu:', error);
+    res.status(500).json({ error: 'Lỗi lấy dữ liệu' });
+  }
 });
 
 app.get('/register', (req, res) => {
   res.render('register');
 });
-
-// Xử lý yêu cầu cập nhật sản phẩm
-app.get('/editProduct', (req, res) => {
-  // Lấy thông tin productName từ query params
-  const { productName } = req.query;
-
-  // Đọc dữ liệu hiện có từ tập tin products.json
-  fs.readFile(productsFilePath, 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading file:', err);
-      return res.sendStatus(500);
-    }
-
-    // Chuyển dữ liệu thành mảng JSON
-    const products = JSON.parse(data);
-
-    // Tìm sản phẩm trong mảng dựa trên thông tin productName
-    const productToUpdate = products.find((product) => product.productName === productName);
-
-    // Nếu không tìm thấy sản phẩm, trả về lỗi 404 (Not Found)
-    if (!productToUpdate) {
-      return res.sendStatus(404);
-    }
-
-    // Render trang form cập nhật với thông tin sản phẩm để fill vào
-    res.render('updateProduct', { product: productToUpdate });
-  });
-});
-
 
 // Xử lý form đăng nhập
 app.post('/login', (req, res) => {
@@ -96,128 +80,69 @@ app.post('/login', (req, res) => {
 
 app.post('/addProduct', upload.single('image'), (req, res) => {
   // Lấy thông tin sản phẩm từ form
-  const { productName, quantity, price } = req.body;
-  const imageFileName = req.file ? req.file.filename : '';
-  console.log('Image file name:', imageFileName);
+  let productName = req.body.productName;
+  let price = req.body.price;
+  let quantity = req.body.quantity;
 
-  // Đọc dữ liệu hiện có từ tập tin products.json
-  fs.readFile(productsFilePath, 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading file:', err);
-      return res.sendStatus(500);
-    }
+  
+  let addProduct = new Product({
+      productName: productName,
+      price: price,
+      image: "",
+      quantity: quantity
+  })
 
-    // Chuyển dữ liệu thành mảng JSON
-    const products = JSON.parse(data);
-
-    // Tạo đối tượng mới để thêm vào mảng
-    const newProduct = {
-      productName,
-      quantity,
-      price,
-      image: `images/${imageFileName}`,
-    };
-
-    // Thêm đối tượng mới vào mảng sản phẩm
-    products.push(newProduct);
-
-    // Ghi mảng sản phẩm đã cập nhật vào tập tin products.json
-    fs.writeFile(productsFilePath, JSON.stringify(products), (err) => {
-      if (err) {
-        console.error('Error writing file:', err);
-        return res.sendStatus(500);
-      }
-
-      // Đã thêm sản phẩm thành công, chuyển hướng về trang thêm sản phẩm hoặc trang thành công
-      res.redirect('/addProduct');
-    });
+  addProduct.save();
+  let listproduct= Product.find().lean();
+  
+  res.redirect('/addProduct');
   });
-});
 
 // Xử lý yêu cầu xóa sản phẩm
-app.post('/deleteProduct', (req, res) => {
-  // Lấy thông tin tên sản phẩm muốn xóa từ form
-  const { productName } = req.body;
+app.post('/delete-product/:id', async(req, res) => {
+  const productId = req.params.id;
 
-  // Đọc dữ liệu hiện có từ tập tin products.json
-  fs.readFile(productsFilePath, 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading file:', err);
-      return res.sendStatus(500);
-    }
-
-    // Chuyển dữ liệu thành mảng JSON
-    let products = JSON.parse(data);
-
-    // Tìm vị trí sản phẩm trong mảng dựa trên thông tin tên sản phẩm muốn xóa
-    const productIndex = products.findIndex((product) => product.productName === productName);
-
-    // Nếu không tìm thấy sản phẩm, trả về lỗi 404 (Not Found)
-    if (productIndex === -1) {
-      return res.sendStatus(404);
-    }
-
-    // Xóa sản phẩm khỏi mảng
-    products.splice(productIndex, 1);
-
-    // Ghi mảng sản phẩm đã cập nhật vào tập tin products.json
-    fs.writeFile(productsFilePath, JSON.stringify(products), (err) => {
-      if (err) {
-        console.error('Error writing file:', err);
-        return res.sendStatus(500);
-      }
-
-      // Đã xóa sản phẩm thành công, chuyển hướng về trang thêm sản phẩm hoặc trang thành công
-      res.redirect('/addProduct');
+  try {
+    await Product.findByIdAndDelete(productId);
+    res.redirect('/addProduct'); // Sau khi xóa, chuyển hướng về trang danh sách sản phẩm
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).send('Internal Server Error');
+  }
     });
-  });
-});
 
 // Xử lý yêu cầu cập nhật thông tin sản phẩm
-app.post('/updateProduct', (req, res) => {
-  // Lấy thông tin sản phẩm từ form
-  const { productName, quantity, price } = req.body;
-
-  // Đọc dữ liệu hiện có từ tập tin products.json
-  fs.readFile(productsFilePath, 'utf8', (err, data) => {
-    if (err) {
-      console.error('Error reading file:', err);
-      return res.sendStatus(500);
-    }
-
-    // Chuyển dữ liệu thành mảng JSON
-    let products = JSON.parse(data);
-
-    // Tìm sản phẩm trong mảng dựa trên thông tin productName
-    const productToUpdate = products.find((product) => product.productName === productName);
-
-    // Nếu không tìm thấy sản phẩm, trả về lỗi 404 (Not Found)
-    if (!productToUpdate) {
-      return res.sendStatus(404);
-    }
-
-    // Cập nhật thông tin sản phẩm
-    productToUpdate.quantity = quantity;
-    productToUpdate.price = price;
-
-    // Ghi mảng sản phẩm đã cập nhật vào tập tin products.json
-    fs.writeFile(productsFilePath, JSON.stringify(products), (err) => {
-      if (err) {
-        console.error('Error writing file:', err);
-        return res.sendStatus(500);
-      }
-
-      // Đã cập nhật sản phẩm thành công, chuyển hướng về trang thêm sản phẩm hoặc trang thành công
-      res.redirect('/addProduct');
-    });
-  });
+app.post('/updateproduct/update/:id',async (req, res) => {
+  const productId = req.params.id;
+  const { productName, price, image,quantity } = req.body;
+   console.log(req.body.productName);
+  // Thực hiện lưu dữ liệu vào MongoDB
+  try {
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      { productName, price, image, quantity },
+      { new: true }
+    );
+    console.log('Dữ liệu đã được cập nhật:', updatedProduct);
+    res.redirect('/addProduct'); // Điều hướng về trang chủ hoặc trang xác nhận
+  } catch (error) {
+    console.error('Lỗi khi cập nhật dữ liệu:', error);
+   
+  }
 });
 
+app.get('/updateproduct/:id', async(req, res)=>{
+  const product=await Product.findById(req.params.id).lean();
+  res.render('home',{
+    layout:'updateProduct',
+    data:product
+  });
+});
 
 
 // Xử lý các yêu cầu khác
 
-const port = 3000; // Đã khai báo và gán giá trị cho biến port
+const port = 3000;
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
